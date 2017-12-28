@@ -5,20 +5,30 @@ import (
 	"fmt"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/patrickmn/go-cache"
 	"gopkg.in/square/go-jose.v2"
 )
 
 func New(source JWKSSource) *JWKSClient {
-	return &JWKSClient{source: source}
+	return &JWKSClient{
+		source: source,
+		cache:  DefaultCache(),
+	}
 }
 
 type JWKSClient struct {
 	source JWKSSource
+	cache  LocalCache
 }
 
 // Set a custom jwks source
 func (c *JWKSClient) SetJWKSSource(source JWKSSource) {
 	c.source = source
+}
+
+// Set a custom local cache
+func (c *JWKSClient) SetLocalCache(cache LocalCache) {
+	c.cache = cache
 }
 
 func (c *JWKSClient) GetUseKey(kid, use string) (*jose.JSONWebKey, error) {
@@ -41,11 +51,29 @@ func (c *JWKSClient) GetUseKey(kid, use string) (*jose.JSONWebKey, error) {
 }
 
 func (c *JWKSClient) GetSignatureKey(kid string) (*jose.JSONWebKey, error) {
-	return c.GetUseKey(kid, "sig")
+	value, existed := c.cache.Get(kid)
+	if existed {
+		return value.(*jose.JSONWebKey), nil
+	}
+	jwk, err := c.GetUseKey(kid, "sig")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Set(kid, jwk, cache.DefaultExpiration)
+	return jwk, nil
 }
 
 func (c *JWKSClient) GetEncryptionKey(kid string) (*jose.JSONWebKey, error) {
-	return c.GetUseKey(kid, "enc")
+	value, existed := c.cache.Get(kid)
+	if existed {
+		return value.(*jose.JSONWebKey), nil
+	}
+	jwk, err := c.GetUseKey(kid, "enc")
+	if err != nil {
+		return nil, err
+	}
+	c.cache.Set(kid, jwk, cache.DefaultExpiration)
+	return jwk, nil
 }
 
 func (c *JWKSClient) JWTKeyFunc() jwt.Keyfunc {

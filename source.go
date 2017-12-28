@@ -5,14 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"sync"
-	"time"
 
 	"gopkg.in/square/go-jose.v2"
-)
-
-const (
-	defaultExpiration = 24 * time.Hour
 )
 
 type JWKSSource interface {
@@ -29,27 +23,9 @@ func NewEndpointSource(jwksUri string) *EndpointSource {
 type EndpointSource struct {
 	client  *http.Client
 	jwksUri string
-	mu      sync.Mutex
-
-	jwks         *jose.JSONWebKeySet
-	expirationAt int64
 }
 
 func (s *EndpointSource) JSONWebKeySet() (*jose.JSONWebKeySet, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.jwks == nil || time.Now().UnixNano() > s.expirationAt {
-		var err error
-		s.jwks, err = s.load()
-		if err != nil {
-			return nil, err
-		}
-		s.expirationAt = time.Now().Add(defaultExpiration).UnixNano()
-	}
-	return s.jwks, nil
-}
-
-func (s *EndpointSource) load() (*jose.JSONWebKeySet, error) {
 	resp, err := s.client.Get(s.jwksUri)
 	if err != nil {
 		return nil, err
@@ -72,27 +48,9 @@ func NewFileSource(filePath string) *FileSource {
 
 type FileSource struct {
 	filePath string
-	mu       sync.Mutex
-
-	jwks         *jose.JSONWebKeySet
-	expirationAt int64
 }
 
 func (s *FileSource) JSONWebKeySet() (*jose.JSONWebKeySet, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.jwks == nil || time.Now().UnixNano() > s.expirationAt {
-		var err error
-		s.jwks, err = s.load()
-		if err != nil {
-			return nil, err
-		}
-		s.expirationAt = time.Now().Add(defaultExpiration).UnixNano()
-	}
-	return s.jwks, nil
-}
-
-func (s *FileSource) load() (*jose.JSONWebKeySet, error) {
 	f, err := os.Open(s.filePath)
 	if err != nil {
 		return nil, err
