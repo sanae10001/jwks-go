@@ -3,6 +3,7 @@ package jwks
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -11,6 +12,15 @@ import (
 
 type JWKSSource interface {
 	JSONWebKeySet() (*jose.JSONWebKeySet, error)
+}
+
+func MustValidEndpointSource(jwksUri string) *EndpointSource {
+	s := NewEndpointSource(jwksUri)
+	_, err := s.JSONWebKeySet()
+	if err != nil {
+		log.Panic(err)
+	}
+	return s
 }
 
 func NewEndpointSource(jwksUri string) *EndpointSource {
@@ -40,6 +50,15 @@ func (s *EndpointSource) JSONWebKeySet() (*jose.JSONWebKeySet, error) {
 		return nil, err
 	}
 	return jwks, err
+}
+
+func MustValidFileSource(filePath string) *FileSource {
+	s := NewFileSource(filePath)
+	_, err := s.JSONWebKeySet()
+	if err != nil {
+		log.Panic(err)
+	}
+	return s
 }
 
 func NewFileSource(filePath string) *FileSource {
