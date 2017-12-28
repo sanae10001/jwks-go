@@ -1,0 +1,6 @@
+package: jwks-go
+import:
+- package: github.com/dgrijalva/jwt-go
+  version: ^3.1.0
+- package: gopkg.in/square/go-jose.v2
+  version: ^2.1.3
